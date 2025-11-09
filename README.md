@@ -1,200 +1,308 @@
-# File-Explorer
-// =============================
-// 📂 FILE: file_explorer.cpp
-// =============================
-#include <bits/stdc++.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <pwd.h>
-#include <grp.h>
-#include <fcntl.h>
-#include <utime.h>
-using namespace std;
+# Linux File Explorer Application
 
-string get_permissions(mode_t mode) {
-    string perms;
-    perms += (S_ISDIR(mode)) ? 'd' : '-';
-    perms += (mode & S_IRUSR) ? 'r' : '-';
-    perms += (mode & S_IWUSR) ? 'w' : '-';
-    perms += (mode & S_IXUSR) ? 'x' : '-';
-    perms += (mode & S_IRGRP) ? 'r' : '-';
-    perms += (mode & S_IWGRP) ? 'w' : '-';
-    perms += (mode & S_IXGRP) ? 'x' : '-';
-    perms += (mode & S_IROTH) ? 'r' : '-';
-    perms += (mode & S_IWOTH) ? 'w' : '-';
-    perms += (mode & S_IXOTH) ? 'x' : '-';
-    return perms;
-}
+A console-based File Explorer written in C++ for Linux systems.  
+This project provides a complete file management system that supports navigation, file manipulation, search, and permission management directly through the terminal.
 
-void list_files_simple(const string& path) {
-    DIR* dir = opendir(path.c_str());
-    if (!dir) {
-        perror("Error opening directory");
-        return;
-    }
-    dirent* entry;
-    while ((entry = readdir(dir)) != NULL)
-        cout << entry->d_name << endl;
-    closedir(dir);
-}
+---
+## Project Overview
 
-void list_files_detailed(const string& path) {
-    DIR* dir = opendir(path.c_str());
-    if (!dir) {
-        perror("Error opening directory");
-        return;
-    }
-    dirent* entry;
-    cout << left << setw(12) << "Permissions" << setw(10) << "Owner"
-         << setw(10) << "Group" << setw(10) << "Size" << "Modified" << endl;
-    cout << string(60, '-') << endl;
+**Project Type:** Capstone Project  
+**Language Used:** C++  
+**Operating System:** Linux 
+**Development Time:** 5 Days  
+---
+## Features Overview
 
-    while ((entry = readdir(dir)) != NULL) {
-        string filepath = path + "/" + entry->d_name;
-        struct stat fileStat;
-        if (stat(filepath.c_str(), &fileStat) < 0) continue;
-        struct passwd *pw = getpwuid(fileStat.st_uid);
-        struct group *gr = getgrgid(fileStat.st_gid);
-        string timeStr = ctime(&fileStat.st_mtime);
-        timeStr.pop_back();
-        cout << setw(12) << get_permissions(fileStat.st_mode)
-             << setw(10) << pw->pw_name
-             << setw(10) << gr->gr_name
-             << setw(10) << fileStat.st_size
-             << " " << timeStr << "  " << entry->d_name << endl;
-    }
-    closedir(dir);
-}
+### Day 1: Basic Operations
+- List files in the current directory (simple and detailed view)
+- Display file permissions, size, owner, group, and modification time
+- Color-coded display for directories, executables, and regular files
 
-void create_file(const string& filename) {
-    ofstream file(filename);
-    if (file) cout << "File created successfully.\n";
-    else perror("Error creating file");
-}
+### Day 2: Navigation
+- Change directories (absolute and relative paths)
+- Navigate to the parent directory
+- Display the current working directory
+- Real-time path tracking
 
-void create_directory(const string& dirname) {
-    if (mkdir(dirname.c_str(), 0755) == 0) cout << "Directory created.\n";
-    else perror("Error creating directory");
-}
+### Day 3: File Manipulation
+- Create files and directories
+- Delete files and directories (with recursive option)
+- Copy files and directories recursively
+- Move files or directories (supports cross-filesystem operations)
+- Rename files or directories
 
-void delete_file_or_dir(const string& path) {
-    struct stat s;
-    if (stat(path.c_str(), &s) == 0) {
-        if (S_ISDIR(s.st_mode)) {
-            string cmd = "rm -r '" + path + "'";
-            system(cmd.c_str());
-        } else unlink(path.c_str());
-        cout << "Deleted successfully.\n";
-    } else perror("Error deleting");
-}
+### Day 4: Search Functionality
+- Recursive file search across directories
+- Case-insensitive search
+- Display full file paths for all search results
 
-void copy_file(const string& src, const string& dest) {
-    ifstream in(src, ios::binary);
-    ofstream out(dest, ios::binary);
-    out << in.rdbuf();
-    cout << "File copied successfully.\n";
-}
+### Day 5: Permission Management
+- View file permissions in symbolic and octal format
+- Change permissions using the `chmod` command
+- Change ownership and group using the `chown` command
+- Display owner, group, size, and last modification time
 
-void move_file(const string& src, const string& dest) {
-    if (rename(src.c_str(), dest.c_str()) == 0)
-        cout << "Moved successfully.\n";
-    else perror("Error moving");
-}
+---
 
-void rename_file(const string& oldn, const string& newn) {
-    if (rename(oldn.c_str(), newn.c_str()) == 0)
-        cout << "Renamed successfully.\n";
-    else perror("Error renaming");
-}
+## Prerequisites
 
-void search_files(const string& base, const string& term) {
-    DIR* dir = opendir(base.c_str());
-    if (!dir) return;
-    dirent* entry;
-    while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
-            continue;
-        string path = base + "/" + entry->d_name;
-        if (strcasestr(entry->d_name, term.c_str()))
-            cout << path << endl;
-        struct stat s;
-        if (stat(path.c_str(), &s) == 0 && S_ISDIR(s.st_mode))
-            search_files(path, term);
-    }
-    closedir(dir);
-}
+- Linux environment (Ubuntu, Debian, Fedora, or WSL)
+- Installed `g++` compiler
+- Installed `make` utility
+- Root or sudo privileges (for permission and ownership operations)
 
-void view_permissions(const string& filename) {
-    struct stat fileStat;
-    if (stat(filename.c_str(), &fileStat) < 0) {
-        perror("Error getting permissions");
-        return;
-    }
-    cout << "Permissions: " << get_permissions(fileStat.st_mode) << endl;
-    cout << "Owner: " << getpwuid(fileStat.st_uid)->pw_name << endl;
-    cout << "Group: " << getgrgid(fileStat.st_gid)->gr_name << endl;
-    cout << "Size: " << fileStat.st_size << " bytes\n";
-    cout << "Last Modified: " << ctime(&fileStat.st_mtime);
-}
+---
 
-void change_permissions(const string& filename, const string& perm) {
-    mode_t mode = stoi(perm, nullptr, 8);
-    if (chmod(filename.c_str(), mode) == 0)
-        cout << "Permissions changed.\n";
-    else perror("Error changing permissions");
-}
+## Installation and Setup
 
-void change_owner(const string& filename, const string& user, const string& group) {
-    struct passwd* pw = getpwnam(user.c_str());
-    struct group* gr = getgrnam(group.c_str());
-    if (!pw || !gr) {
-        cerr << "Invalid user/group\n";
-        return;
-    }
-    if (chown(filename.c_str(), pw->pw_uid, gr->gr_gid) == 0)
-        cout << "Owner/Group changed.\n";
-    else perror("Error changing owner");
-}
+### Step 1: Clone or Download the Repository
+```bash
+git clone https://github.com/<your-username>/file-explorer-cpp.git
+cd file-explorer-cpp
+````
 
-int main() {
-    while (true) {
-        char cwd[1024];
-        getcwd(cwd, sizeof(cwd));
-        cout << "\n==================== FILE EXPLORER MENU ====================\n";
-        cout << "Current Directory: " << cwd << "\n";
-        cout << "------------------------------------------------------------\n";
-        cout << "1.  List files (simple)\n2.  List files (detailed)\n3.  Change directory\n4.  Go to parent directory\n";
-        cout << "5.  Create file\n6.  Create directory\n7.  Delete file/directory\n8.  Copy file\n9.  Move file\n";
-        cout << "10. Rename file/directory\n11. Search files\n12. View file permissions\n13. Change permissions (chmod)\n";
-        cout << "14. Change owner/group (chown)\n15. Display current path\n0.  Exit\n";
-        cout << "------------------------------------------------------------\n";
-        cout << "Choose an option: ";
-        int ch; cin >> ch;
-        cin.ignore();
-        if (ch == 0) break;
+### Step 2: Compile the Application
 
-        string a, b;
-        switch (ch) {
-            case 1: list_files_simple(cwd); break;
-            case 2: list_files_detailed(cwd); break;
-            case 3: cout << "Enter directory: "; getline(cin, a); chdir(a.c_str()); break;
-            case 4: chdir(".."); break;
-            case 5: cout << "Enter filename: "; getline(cin, a); create_file(a); break;
-            case 6: cout << "Enter directory: "; getline(cin, a); create_directory(a); break;
-            case 7: cout << "Enter path: "; getline(cin, a); delete_file_or_dir(a); break;
-            case 8: cout << "Enter source: "; getline(cin, a); cout << "Enter destination: "; getline(cin, b); copy_file(a, b); break;
-            case 9: cout << "Enter source: "; getline(cin, a); cout << "Enter destination: "; getline(cin, b); move_file(a, b); break;
-            case 10: cout << "Enter current name: "; getline(cin, a); cout << "Enter new name: "; getline(cin, b); rename_file(a, b); break;
-            case 11: cout << "Enter search term: "; getline(cin, a); search_files(".", a); break;
-            case 12: cout << "Enter filename: "; getline(cin, a); view_permissions(a); break;
-            case 13: cout << "Enter filename: "; getline(cin, a); cout << "Enter octal (e.g., 755): "; getline(cin, b); change_permissions(a, b); break;
-            case 14: cout << "Enter filename: "; getline(cin, a); cout << "Enter new owner: "; getline(cin, b); {string g; cout << "Enter group: "; getline(cin, g); change_owner(a, b, g);} break;
-            case 15: cout << "Current path: " << cwd << endl; break;
-            default: cout << "Invalid option.\n"; break;
-        }
-    }
-    cout << "Exiting File Explorer.\n";
-    return 0;
-}
+**Using Makefile:**
+
+```bash
+make
+```
+
+**Manual Compilation:**
+
+```bash
+g++ -Wall -Wextra -std=c++17 -O2 -o file_explorer file_explorer.cpp
+```
+
+### Step 3: Run the Application
+
+```bash
+./file_explorer
+```
+
+### Step 4: Optional Global Installation
+
+```bash
+sudo cp file_explorer /usr/local/bin/
+file_explorer
+```
+
+---
+
+## Application Menu
+
+```
+==================== FILE EXPLORER MENU ====================
+Current Directory: /home/user
+------------------------------------------------------------
+1.  List files (simple)
+2.  List files (detailed)
+3.  Change directory
+4.  Go to parent directory
+5.  Create file
+6.  Create directory
+7.  Delete file/directory
+8.  Copy file
+9.  Move file
+10. Rename file/directory
+11. Search files
+12. View file permissions
+13. Change permissions (chmod)
+14. Change owner/group (chown)
+15. Display current path
+0.  Exit
+------------------------------------------------------------
+```
+
+---
+
+## Example Usage
+
+### List Files
+
+```bash
+Choose an option: 1
+Documents/
+Projects/
+readme.txt
+```
+
+### Detailed File Listing
+
+```bash
+Choose an option: 2
+Permissions  Owner   Group   Size     Modified             Name
+-rw-r--r--   user    user    2.0 KB   2025-11-09 10:15:21 readme.txt
+drwxr-xr-x   user    user    4.0 KB   2025-11-09 10:00:10 Projects/
+```
+
+### Change Directory
+
+```bash
+Choose an option: 3
+Enter directory: Projects
+Changed directory to: /home/user/Projects
+```
+
+### Create File
+
+```bash
+Choose an option: 5
+Enter filename: new.txt
+File created successfully.
+```
+
+### Delete File
+
+```bash
+Choose an option: 7
+Enter file/directory: old.txt
+File deleted successfully.
+```
+
+### Copy File
+
+```bash
+Choose an option: 8
+Enter source: new.txt
+Enter destination: backup.txt
+File copied successfully.
+```
+
+### Move File
+
+```bash
+Choose an option: 9
+Enter source: backup.txt
+Enter destination: archive.txt
+File moved successfully.
+```
+
+### Rename File
+
+```bash
+Choose an option: 10
+Enter current name: archive.txt
+Enter new name: final.txt
+File renamed successfully.
+```
+
+### Search Files
+
+```bash
+Choose an option: 11
+Enter search term: read
+Search results:
+./readme.txt
+./Documents/read.txt
+```
+
+### View File Permissions
+
+```bash
+Choose an option: 12
+Enter filename: final.txt
+Permissions: -rw-r--r--
+Owner: user
+Group: user
+Size: 1.2 KB
+Last Modified: 2025-11-09 10:30:11
+```
+---
+## User Interface Highlights
+
+* Clear and structured menu layout
+* Color-coded file output
+* Real-time directory updates
+* Informative feedback messages
+* Safe user confirmations before delete operation
+---
+
+### System Calls Used
+
+* `opendir()`, `readdir()`, `closedir()` – Directory operations
+* `stat()` – Retrieve file metadata
+* `mkdir()`, `rmdir()`, `unlink()` – File and directory creation/deletion
+* `rename()` – Move or rename files
+* `chmod()` – Change permissions
+* `chown()` – Change ownership
+* `getcwd()`, `chdir()` – Directory management
+
+### Permission Representation
+
+| Format   | Example    |
+| -------- | ---------- |
+| Symbolic | drwxr-xr-x |
+| Octal    | 755        |
+---
+## Folder Structure
+
+```
+file-explorer-cpp/
+ ├── file_explorer.cpp    # Main source file
+ ├── Makefile             # Build automation file
+ ├── README.md            # Project documentation
+ └── LICENSE              # Project license file
+```
+---
+## Build Options
+
+**Debug Mode**
+
+```bash
+g++ -Wall -Wextra -std=c++17 -g -o file_explorer_debug file_explorer.cpp
+```
+
+**Optimized Release**
+
+```bash
+g++ -Wall -Wextra -std=c++17 -O3 -o file_explorer file_explorer.cpp
+```
+---
+## Learning Outcomes
+
+This project demonstrates:
+
+1. File and directory management using C++ and Linux system calls
+2. Understanding of permissions and ownership in Linux
+3. Implementation of recursive algorithms for search and copy operations
+4. Structured and modular C++ class design
+5. Clean terminal UI with clear feedback messages
+6. Proper error handling and safe user interactions
+
+---
+
+## Future Enhancements
+
+* Add file content preview
+* Implement file sorting and filtering
+* Support for zip/tar archiving
+* Directory bookmarks and navigation history
+* File comparison and difference checking
+
+---
+
+## Developer Information
+
+**Developer:** Subham Nayak
+**Role:** C++ Developer
+**Platform:** Ubuntu (Linux)
+**Compiler:** g++ (GNU C++ Compiler)
+
+---
+
+## License
+
+This project is licensed under the **MIT License**.
+You are free to use, modify, and distribute it for educational or personal purposes.
+
+---
+
+## Conclusion
+
+The Linux File Explorer Application provides a complete, interactive, and reliable file management system built entirely with C++.
+It showcases deep understanding of Linux system calls, file permissions, and terminal interface design.
+This project serves as a solid demonstration of both system-level programming and C++ object-oriented implementation.
+
+```
